@@ -1,22 +1,28 @@
 # THE LAST HINT | শেষ ইঙ্গিত
 
-A Bengali, mobile-first, local pass-and-play social deduction thriller set in a fictional near-future Dhaka during a citywide communications blackout.
+A Bengali mobile-first social deduction thriller set in a fictional near-future Dhaka during a communications emergency.
 
-## Game modes
-- **গল্প মোড (Story Mode):** Narrative case-file text and a four/five-round crisis.
-- **কুইক ম্যাচ (Quick Mode):** Straightforward hidden-role match for 5–8 players.
-- **ফান মোড (Fun Mode):** Humorous Bangladeshi events with the same deduction rules.
+## Dynamic Quick Match
+- 5–8 players on one phone (local pass-and-play).
+- 5–6 players: one Saboteur. 7–8 players: two Saboteurs.
+- Secret roles and individual secret missions.
+- A changing city crisis every round, decided by private player votes.
+- Private role actions with sabotage, repair, investigation, forged evidence, jamming, protection and resource theft.
+- Shared resources: Signal, Power, Intel, Panic and Trust.
+- Public evidence board and private intelligence reports.
+- Secret elimination voting, vote ties, Medic protection and end-game role reveal.
+- Personal mission points in the final report.
 
-## Core gameplay
-- 5–8 players on one phone.
-- Secret role reveal with a private handover between players.
-- Role-specific actions: Commander coordinates, Engineer repairs, Analyst investigates, Security checks access logs, Medic protects a player, Saboteur damages the signal, and Double Agent follows an independent survival goal.
-- Individual secret ballots, automatic vote counting, tie handling, protection, elimination, and win conditions.
-- Signal meter, round events, activity log, and final role reveal.
-- Responsive Bengali interface. No account or server required.
+## Roles
+Commander, Engineer, Analyst, Security Officer, Medic, Dispatcher and Saboteur.
+
+## Modes
+- **গল্প মোড:** Story-flavoured crisis text.
+- **কুইক ম্যাচ:** Tactical social deduction.
+- **ফান মোড:** Humorous crisis descriptions with the same rules.
 
 ## Run
-Open `index.html` in a modern browser, or deploy the repository to Vercel as a static site.
+Open `index.html` in a modern browser or deploy this repository to Vercel as a static site.
 
-## Current scope
-This is a complete local pass-and-play game loop. Online multiplayer across separate devices, accounts, cloud saves, and server-side anti-cheat are not included. Story mode currently uses narrative event text rather than a large branching campaign.
+## Scope
+Local pass-and-play only. Online multiplayer across devices, accounts, cloud saves, server-side anti-cheat and a branching campaign are not included.

@@ -135,6 +135,7 @@ function resolveActions(){
  signal=Math.max(0,Math.min(100,signal+repair-damage));
  addLog('গোপন অ্যাকশন শেষ। সিগন্যাল '+(repair-damage>=0?'+':'')+(repair-damage)+'%।');
  lastRoundSummary=summary.length?summary.join(' · '):'কোনো বিশেষ অ্যাকশন ধরা পড়েনি।';
+ if(checkVictory())return;
  renderGame('আলোচনা ও প্রমাণ','সব গোপন অ্যাকশন শেষ। নিজেদের সূত্র নিয়ে আলোচনা করুন, কিন্তু ব্যক্তিগত রিপোর্ট অন্যকে দেখাবেন না।');
  phase='discussion';$('#nextPhase').textContent='গোপন ভোট শুরু করুন →';show('gameScreen');
  if(checkVictory())return;

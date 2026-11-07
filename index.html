@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090d14"><meta name="description" content="DEAD SIGNAL: শেষ সংকেত — বন্ধুদের সঙ্গে খেলুন বাংলা social deduction thriller.">
+<title>DEAD SIGNAL: শেষ সংকেত</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="noise"></div>
+<header class="topbar"><a class="brand" href="#" id="homeLink"><span class="brand-mark">DS</span><span>DEAD SIGNAL<small>শেষ সংকেত</small></span></a><div class="top-status"><i></i> SYSTEM ONLINE <span id="clock">00:00</span></div></header>
+<main id="app">
+<section id="homeScreen" class="screen active">
+<div class="hero">
+<div class="eyebrow"><span class="pulse"></span> EMERGENCY BROADCAST · DHAKA 02:17 AM</div>
+<div class="hero-art"><div class="tower tower-a"></div><div class="tower tower-b"></div><div class="tower tower-c"></div><div class="signal-ring"></div><div class="signal-core">!</div><div class="scanline"></div></div>
+<h1>DEAD <em>SIGNAL</em></h1><div class="bangla-title">শেষ সংকেত</div>
+<p class="hero-copy">শহর অন্ধকার। যোগাযোগ বিচ্ছিন্ন।<br>কিন্তু বিপদটা বাইরে নয়, <b>তোমাদের মাঝেই কেউ একজন।</b></p>
+<div class="alert-strip"><span>● জরুরি সতর্কতা</span><span>ঢাকা নেটওয়ার্ক: OFFLINE</span><span>সন্দেহভাজন: UNKNOWN</span></div>
+</div>
+<div class="mode-grid">
+<button class="mode-card story" data-mode="story"><span class="mode-icon">▣</span><span class="mode-tag">EPISODE 01</span><strong>গল্প মোড</strong><small>একটি রাত। সাতটি গোপন সত্য।</small><b>শুরু করুন ↗</b></button>
+<button class="mode-card quick" data-mode="quick"><span class="mode-icon">⌁</span><span class="mode-tag">5–8 PLAYERS</span><strong>কুইক ম্যাচ</strong><small>দ্রুত খেলুন, ধাপ্পা ধরুন।</small><b>ম্যাচ শুরু ↗</b></button>
+<button class="mode-card fun" data-mode="fun"><span class="mode-icon">☻</span><span class="mode-tag">CHAOS MODE</span><strong>ফান মোড</strong><small>মিশন, মিথ্যা আর মহা ঝামেলা।</small><b>হাসির খেলা ↗</b></button>
+</div>
+<div class="home-foot"><span>এক ফোনে Pass & Play</span><span>৪–৮ জন · বাংলা</span><span>v1.0.0</span></div>
+</section>
+
+<section id="setupScreen" class="screen">
+<button class="back-btn" id="backHome">← ফিরে যান</button>
+<div class="section-kicker">MISSION CONFIGURATION</div><h2 id="setupTitle">ম্যাচ তৈরি করুন</h2><p class="muted" id="setupDesc">সবাইকে নাম দিন। এরপর ফোনটি একে একে সবার হাতে দিন।</p>
+<div id="storyBrief" class="brief hidden"><div class="brief-label">CASE FILE 001 · ঢাকা, ২০৪১</div><h3>শেষ ট্রেনের শেষ বার্তা</h3><p>রাত ২:১৭। ঢাকার কেন্দ্রীয় যোগাযোগ টাওয়ার থেকে শেষ সংকেত এসেছে: “আমাদের মধ্যে একজন দরজা খুলেছে।” সাতজন কর্মী কন্ট্রোল রুমে আটকা। ভোর হওয়ার আগে নেটওয়ার্ক চালু করতে হবে। কিন্তু একজন চায় শহর চিরতরে অন্ধকার থাকুক।</p></div>
+<div class="panel"><div class="panel-head"><span>অংশগ্রহণকারী</span><span class="counter" id="playerCount">৫ জন</span></div><div id="playerInputs" class="player-inputs"></div><div class="setup-actions"><button class="small-btn" id="addPlayer">＋ খেলোয়াড় যোগ</button><button class="small-btn" id="removePlayer">− কমান</button></div></div>
+<div class="panel settings-panel"><div class="panel-head">গেম সেটিংস</div><label class="setting-row"><span>গেমের সময়</span><select id="duration"><option value="3">৩ রাউন্ড · দ্রুত</option><option value="4" selected>৪ রাউন্ড · ব্যালান্সড</option><option value="5">৫ রাউন্ড · কঠিন</option></select></label><label class="setting-row"><span>গোপন পরিচয়</span><span class="setting-note">সিস্টেম নিজে বণ্টন করবে</span></label></div>
+<button class="primary-btn full" id="beginGame">সিস্টেম চালু করুন <span>↗</span></button>
+<p class="tiny-note">গেমটি একই ফোনে পালাক্রমে খেলুন। অন্যদের স্ক্রিন থেকে দূরে রাখুন।</p>
+</section>
+
+<section id="passScreen" class="screen">
+<div class="section-kicker">PRIVATE ACCESS · DO NOT SHARE</div><div class="pass-lock">▣</div><p class="muted center">এখন ফোনটি শুধু এই খেলোয়াড় দেখবেন</p><h2 class="center" id="passName">খেলোয়াড় ১</h2><div class="pass-card"><div class="pass-label">আপনার গোপন পরিচয়</div><div id="roleIcon" class="role-icon">◈</div><h3 id="roleName">বিশ্লেষক</h3><p id="roleDesc"></p><div class="role-objective"><span>আপনার গোপন লক্ষ্য</span><b id="roleGoal"></b></div></div><button class="primary-btn full" id="hideRole">পরিচয় লুকান <span>✓</span></button><p class="tiny-note center">নিশ্চিত করুন, পরের খেলোয়াড় প্রস্তুত হলেই ফোন দিন।</p></section>
+
+<section id="gameScreen" class="screen">
+<div class="game-head"><div><div class="section-kicker" id="roundLabel">ROUND 01 / 04</div><h2 id="phaseTitle">রাতের শিফট</h2></div><div class="signal-meter"><span>সিগন্যাল</span><b id="signalValue">৬০%</b><div class="meter"><i id="signalBar"></i></div></div></div>
+<div id="eventCard" class="event-card"><span class="event-kicker">SYSTEM ALERT</span><h3 id="eventTitle">বিদ্যুৎ বিভ্রাট</h3><p id="eventText"></p></div>
+<div class="panel"><div class="panel-head"><span>কন্ট্রোল রুম</span><span id="aliveCount" class="counter">৫ জন সক্রিয়</span></div><div id="playerBoard" class="player-board"></div></div>
+<div id="phaseAction" class="panel phase-action"></div>
+<div class="panel log-panel"><div class="panel-head">সিস্টেম লগ <span class="live-dot">LIVE</span></div><div id="logList" class="log-list"></div></div>
+<button class="primary-btn full" id="nextPhase">পরবর্তী ধাপ <span>→</span></button>
+</section>
+
+<section id="endScreen" class="screen">
+<div class="end-symbol" id="endSymbol">◈</div><div class="section-kicker center">MISSION REPORT</div><h2 class="center" id="endTitle">সংকেত ফিরে এসেছে</h2><p class="muted center" id="endText"></p><div id="revealList" class="reveal-list"></div><button class="primary-btn full" id="playAgain">আবার খেলুন ↻</button><button class="secondary-btn full" id="goHome">হোমে ফিরুন</button></section>
+</main>
+<div id="toast" class="toast"></div>
+<script src="game.js"></script>
+</body></html>

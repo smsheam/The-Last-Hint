@@ -1,6 +1,6 @@
-# DEAD SIGNAL: শেষ সংকেত
+# THE LAST HINT | শেষ ইঙ্গিত
 
-A Bengali, mobile-first social deduction thriller game. Set in a fictional near-future Dhaka during a citywide communication blackout.
+A Bengali, mobile-first social deduction thriller game named **The Last Hint**. Set in a fictional near-future Dhaka during a citywide communication blackout.
 
 ## Modes
 - **গল্প মোড (Story Mode):** A narrative case file with a local thriller setting.

@@ -1,215 +1,72 @@
-(() => {
+(()=>{
 'use strict';
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const screens = ['homeScreen','setupScreen','passScreen','gameScreen','endScreen'];
-let mode='quick', players=[], roles=[], alive=[], round=1, totalRounds=4, signal=65;
-let logs=[], actions=[], votes=[], turnOrder=[], turnIndex=0, phase='setup';
-let protectionTarget=null, voteResult=null, lastRoundSummary='', personalReports={}, scores=[];
-const roleData = {
- commander:{name:'কমান্ডার',icon:'⌖',team:'crew',desc:'দলের সমন্বয় করুন। আপনার সিদ্ধান্ত সিগন্যালকে স্থিতিশীল রাখে।',goal:'শেষ পর্যন্ত অন্তত ৩ জন ক্রু সদস্যকে বাঁচিয়ে রাখুন।',action:'coordinate',actionLabel:'দলকে সমন্বয় করুন',actionDesc:'দলের মনোবল বাড়িয়ে সিগন্যাল ৫% উন্নত করুন।'},
- engineer:{name:'ইঞ্জিনিয়ার',icon:'ϟ',team:'crew',desc:'কন্ট্রোল রুমের পাওয়ার ও যোগাযোগ ব্যবস্থা আপনার দায়িত্ব।',goal:'সিগন্যাল ৮০% বা তার বেশি করুন।',action:'repair',actionLabel:'সিস্টেম মেরামত',actionDesc:'সিগন্যাল ১২% বাড়ান।'},
- analyst:{name:'বিশ্লেষক',icon:'⌘',team:'crew',desc:'তথ্য, লগ ও আচরণ বিশ্লেষণ করে সন্দেহভাজন খুঁজুন।',goal:'একজন সাবোটিয়ারকে সঠিকভাবে শনাক্ত করতে সাহায্য করুন।',action:'investigate',actionLabel:'গোপন তদন্ত',actionDesc:'একজন খেলোয়াড়ের পরিচয় সম্পর্কে ব্যক্তিগত সূত্র পান।',target:true},
- security:{name:'নিরাপত্তা কর্মকর্তা',icon:'⬡',team:'crew',desc:'অ্যাক্সেস লগ ও চলাচল পর্যবেক্ষণ করুন।',goal:'সঠিক ব্যক্তির বিরুদ্ধে ভোট দিন।',action:'scan',actionLabel:'অ্যাক্সেস লগ পরীক্ষা',actionDesc:'একজনের গতিবিধি সম্পর্কে নির্ভরযোগ্য রিপোর্ট পান।',target:true},
- medic:{name:'চিকিৎসক',icon:'✚',team:'crew',desc:'জরুরি অবস্থায় একজনকে সুরক্ষা দিতে পারবেন।',goal:'আপনার সুরক্ষা যেন একটি ভোটের লক্ষ্যকে বাঁচায়।',action:'protect',actionLabel:'একজনকে সুরক্ষা দিন',actionDesc:'এই রাউন্ডে আপনার নির্বাচিত ব্যক্তি ভোটে বাদ পড়বেন না।',target:true},
- saboteur:{name:'সাবোটিয়ার',icon:'☠',team:'enemy',desc:'তুমি এই সংকট তৈরি করেছ। সিস্টেম নষ্ট করো এবং সন্দেহ অন্যদিকে ঘুরিয়ে দাও।',goal:'সিগন্যাল শূন্য করো অথবা ক্রুদের সমান/বেশি সংখ্যায় টিকে থাকো।',action:'sabotage',actionLabel:'সিগন্যাল নষ্ট করুন',actionDesc:'সিগন্যাল ১৪% কমান।'},
- double:{name:'ডাবল এজেন্ট',icon:'◉',team:'solo',desc:'তুমি কারও পুরোপুরি বিশ্বস্ত নও। নিজের নিরাপত্তাই তোমার আসল লক্ষ্য।',goal:'শেষ রাউন্ড পর্যন্ত বেঁচে থাকুন।',action:'quiet',actionLabel:'গোপন সংকেত বদলান',actionDesc:'সিগন্যাল ৬% কমান, অথবা নীরবে ৪% মেরামত করুন।'}
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],screens=['homeScreen','setupScreen','passScreen','gameScreen','endScreen'];
+let mode='quick',players=[],roles=[],alive=[],missions=[],missionDone=[],score=[],round=1,total=4,signal=65,power=5,intel=1,panic=0,trust=2;
+let phase='setup',event=null,turns=[],ti=0,crisisVotes=[],actions=[],votes=[],evidence=[],reports={},logs=[],protectedPlayer=null,roundEvents=[];
+const R={
+ commander:{name:'কমান্ডার',icon:'⌖',team:'crew',objective:'শেষ পর্যন্ত অন্তত ৩ জন Crew সদস্যকে বাঁচিয়ে রাখুন।',actions:[['rally','দলকে সংগঠিত করুন','Signal +৪, Trust +১'],['lockdown','জরুরি লকডাউন','Saboteur-এর নাশকতা ৭ পয়েন্ট কমান']]},
+ engineer:{name:'ইঞ্জিনিয়ার',icon:'ϟ',team:'crew',objective:'Signal ৮০% পর্যন্ত তুলুন।',actions:[['repair','সিস্টেম মেরামত','২ Power খরচ করে Signal +১৫'],['reroute','ব্যাকআপ লাইন চালু','Power +২, Signal +৪']]},
+ analyst:{name:'বিশ্লেষক',icon:'⌘',team:'crew',objective:'একজন Saboteur-এর বিরুদ্ধে কার্যকর সূত্র সংগ্রহ করুন।',actions:[['analyze','গোপন তদন্ত','একজনের পরিচয় সম্পর্কে ব্যক্তিগত সূত্র পান'],['verify','প্রমাণ যাচাই','সর্বশেষ প্রমাণের সত্যতা পরীক্ষা করুন']]},
+ security:{name:'নিরাপত্তা কর্মকর্তা',icon:'⬡',team:'crew',objective:'ভোটে একজন Saboteur শনাক্ত করুন।',actions:[['audit','অ্যাক্সেস লগ পরীক্ষা','একজনের পরিচয় সম্পর্কে শক্তিশালী সূত্র পান'],['secure','এলাকা সুরক্ষিত করুন','Signal +৩, Trust +১']]},
+ medic:{name:'চিকিৎসক',icon:'✚',team:'crew',objective:'আপনার সুরক্ষায় একজনকে বহিষ্কার থেকে বাঁচান।',actions:[['shield','একজনকে সুরক্ষা দিন','নাশকতা কমান এবং ভোটে বাঁচান'],['stabilize','জরুরি চিকিৎসা','Signal +৬, Panic -১']]},
+ dispatcher:{name:'ডিসপ্যাচার',icon:'◉',team:'crew',objective:'দলের জন্য অন্তত ২ Intel সংগ্রহ করুন।',actions:[['broadcast','জরুরি সম্প্রচার','Intel +২, Signal +৩'],['decrypt','সংকেত ডিকোড','একজনের বিষয়ে দুর্বল সূত্র পান']]},
+ saboteur:{name:'সাবোটিয়ার',icon:'☠',team:'enemy',objective:'Signal শূন্য করুন অথবা Crew-দের সংখ্যায় হারিয়ে দিন।',actions:[['overload','পাওয়ার ওভারলোড','Signal -১৩'],['steal','রিসোর্স চুরি','Power -২, Panic +১'],['forge','ভুয়া প্রমাণ তৈরি','একজনকে ফাঁসানোর চেষ্টা করুন'],['jam','কমিউনিকেশন জ্যাম','Crew-দের Repair/Broadcast দুর্বল করুন']]}
 };
-const storyEvents=[
- ['বিদ্যুৎ বিভ্রাট','কন্ট্রোল রুমের অর্ধেক আলো নিভে গেছে। ব্যাকআপ জেনারেটর চালু না হলে সিগন্যাল দুর্বল হবে।',-4],
- ['অচেনা কল','একটি অজানা নম্বর থেকে কল এসেছে: “তোমাদের মধ্যে একজন দরজা খুলেছে।”',0],
- ['CCTV ফুটেজ','রাত ১:৫২-এর ফুটেজে একজনকে সার্ভার রুমে দেখা গেছে। কিন্তু মুখটি স্পষ্ট নয়।',0],
- ['দরজা লক','সার্ভার রুমের দরজা বাইরে থেকে বন্ধ। জরুরি বিদ্যুৎ সাশ্রয় করতে হবে।',-3],
- ['ব্যাকআপ সংযোগ','পুরোনো একটি ব্যাকআপ লাইন পাওয়া গেছে। সিগন্যাল কিছুটা স্থিতিশীল হয়েছে।',5]
+const events=[
+['বিদ্যুৎ গ্রিডে আগুন','বিদ্যুৎ বাঁচাবেন, নাকি দ্রুত নেটওয়ার্ক সচল করবেন?','জেনারেটর চালু','বিদ্যুৎ সাশ্রয়',{s:8,p:-2,pa:1},{s:-4,p:2,pa:-1}],
+['হাসপাতালের জরুরি কল','হাসপাতাল ও টাওয়ার, কাকে আগে ব্যান্ডউইথ দেবেন?','হাসপাতালকে অগ্রাধিকার','টাওয়ারকে অগ্রাধিকার',{s:-5,i:1,t:1},{s:5,pa:1}],
+['ভুয়া সরকারি নির্দেশ','টাওয়ার বন্ধের নির্দেশ এসেছে। বার্তাটি আসল কি না কেউ জানে না।','নির্দেশ যাচাই','তাৎক্ষণিক বন্ধ',{i:1,s:-2,t:1},{s:-9,pa:2}],
+['বন্যার পানি ঢুকছে','বেসমেন্টে পানি। ব্যাটারি সরাতে সময় লাগবে।','ব্যাটারি সরান','সার্ভার বাঁচান',{p:-1,s:5,pa:1},{s:-5,i:1}],
+['CCTV হ্যাক','একই ব্যক্তি দুই জায়গায় দেখা যাচ্ছে। ফুটেজে কারসাজি হতে পারে।','ফুটেজ সংরক্ষণ','ক্যামেরা রিবুট',{i:2,p:-1},{s:3,i:-1}],
+['অ্যান্টেনা বিস্ফোরণ','দূরের জেলা বিচ্ছিন্ন হওয়ার আগে সিদ্ধান্ত নিন।','ঝুঁকি নিয়ে মেরামত','নিরাপদ মোড',{s:12,p:-2,pa:1},{s:-3,p:1}],
+['অচেনা ভয়েস মেসেজ','কেউ দাবি করছে Saboteur বাইরে থেকে নিয়ন্ত্রণ করছে।','সোর্স ট্রেস করুন','বার্তা উপেক্ষা',{i:2,s:-2},{t:1,pa:-1}],
+['ডেটা সেন্টার গরম','কুলিং সিস্টেম ব্যর্থ হচ্ছে। পাওয়ার ভাগ করতে হবে।','কুলিং চালু','সার্ভার বন্ধ রাখুন',{p:-2,s:7},{s:-4,p:1,pa:-1}],
+['জনতার চাপ','ভুল খবর ছড়ালে শহরে Panic বেড়ে যাবে।','সত্য তথ্য প্রচার','গোপনীয়তা বজায়',{i:1,t:2,s:-2},{t:-1,s:3}],
+['শেষ ব্যাকআপ','একটি ব্যাকআপ ব্যাটারি আছে। এখন ব্যবহার করবেন?','এখন ব্যবহার','জরুরি সময়ের জন্য রাখুন',{s:10,p:-2},{p:2,s:-3}]
 ];
-const funEvents=[
- ['চা-স্টল বিপর্যয়','কেউ জরুরি কফির বদলে ৩ লিটার দুধ অর্ডার করেছে। সন্দেহজনক!',0],
- ['ভূতের ভয়েস নোট','একটি ভয়েস নোটে শোনা গেল: “ভাই, আমি কিন্তু কিছু করি নাই।”',-2],
- ['বিরিয়ানি ষড়যন্ত্র','সার্ভারের পাসওয়ার্ডের বদলে কেউ বিরিয়ানির রেসিপি লিখেছে।',0],
- ['বসের ফোন','বস জানতে চেয়েছেন কাজ কতদূর। সবাই একসাথে বলুন: “প্রায় শেষ!”',3],
- ['চার্জ ১%','একজনের ফোনে চার্জ ১%। সেটিও কি সাবোটাজ?',-3]
+const missions=[
+['repair','এই ম্যাচে অন্তত একবার সিস্টেম মেরামত করুন।'],['intel','দলের জন্য অন্তত ২ Intel সংগ্রহ করুন।'],['survive','শেষ রাউন্ড পর্যন্ত বেঁচে থাকুন।'],['vote','একজন Saboteur-কে ভোট দিন।'],['protect','আপনার কারণে কেউ বহিষ্কার থেকে বাঁচুক।'],['evidence','একটি প্রমাণ যাচাই বা তৈরি করুন।'],['signal','Signal ৮০% পর্যন্ত তুলতে সাহায্য করুন।']
 ];
-const storyBeats=[
- 'ঢাকার কেন্দ্রীয় যোগাযোগ টাওয়ার থেকে শেষ সংকেত এসেছে: “আমাদের মধ্যে একজন দরজা খুলেছে।”',
- 'কন্ট্রোল রুমের দরজা লক। বাইরে থেকে সাহায্য আসছে না। কাউকে বিশ্বাস করা যাচ্ছে না।',
- 'পুরোনো সার্ভারে একটি মুছে ফেলা লগ পাওয়া গেছে। সময় শেষ হওয়ার আগে সত্য বের করতে হবে।',
- 'শেষ ট্রান্সমিশন চালু করতে হলে সন্দেহভাজনকে শনাক্ত করতে হবে।'
-];
-function show(id){screens.forEach(s=>$('#'+s).classList.toggle('active',s===id));window.scrollTo(0,0)}
-function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2200)}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function setClock(){$('#clock').textContent=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
-setClock();setInterval(setClock,30000);
-function buildInputs(){
- $('#playerCount').textContent=players.length+' জন';
- $('#playerInputs').innerHTML=players.map((p,i)=>'<div class="player-input"><span class="player-num">'+String(i+1).padStart(2,'0')+'</span><input maxlength="18" aria-label="খেলোয়াড় '+(i+1)+'" data-index="'+i+'" value="'+escapeHtml(p)+'" placeholder="খেলোয়াড়ের নাম"></div>').join('');
- $$('#playerInputs input').forEach(el=>el.addEventListener('input',e=>players[+e.target.dataset.index]=e.target.value));
-}
-function setup(m){
- mode=m;players=['রাফি','নাবিলা','তানভীর','মেহজাবিন','সাকিব'];
- $('#storyBrief').classList.toggle('hidden',m!=='story');
- $('#setupTitle').textContent=m==='story'?'অপারেশন শুরু করুন':m==='fun'?'হাসির ম্যাচ তৈরি করুন':'ম্যাচ তৈরি করুন';
- $('#setupDesc').textContent=m==='story'?'এই রাতের রহস্য সমাধান করতে হবে।':'সবাইকে নাম দিন। এরপর ফোনটি একে একে সবার হাতে দিন।';
- buildInputs();show('setupScreen');
-}
-function shuffle(a){const x=[...a];for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[x[i],x[j]]=[x[j],x[i]]}return x}
-function assignRoles(){
- const n=players.length, bag=[];
- const crew=shuffle(['commander','engineer','analyst','security','medic']);
- bag.push(...crew.slice(0,n===5?4:5),'saboteur');
- if(n>=7)bag.push('double');
- if(n===8)bag.push('saboteur');
- roles=shuffle(bag).map(k=>({...roleData[k],key:k}));
-}
-function start(){
- players=$$('#playerInputs input').map((el,i)=>el.value.trim()||'খেলোয়াড় '+(i+1));
- if(new Set(players.map(x=>x.toLocaleLowerCase())).size!==players.length){toast('প্রত্যেকের আলাদা নাম দিন।');return}
- totalRounds=+$('#duration').value;assignRoles();
- alive=players.map((_,i)=>i);round=1;signal=65;logs=[];actions=[];votes=[];scores=players.map(()=>0);
- protectionTarget=null;voteResult=null;personalReports={};phase='reveal';
- $('#passScreen').innerHTML='';
- currentReveal(0);show('passScreen');
-}
-function currentReveal(i){
- const r=roles[i];
- $('#passScreen').innerHTML='<div class="section-kicker">PRIVATE ACCESS · DO NOT SHARE</div><div class="pass-lock">'+r.icon+'</div><p class="muted center">এখন ফোনটি শুধু এই খেলোয়াড় দেখবেন</p><h2 class="center">'+escapeHtml(players[i])+'</h2><div class="pass-card"><div class="pass-label">আপনার গোপন পরিচয়</div><div class="role-icon">'+r.icon+'</div><h3>'+r.name+'</h3><p>'+r.desc+'</p><div class="role-objective"><span>আপনার গোপন লক্ষ্য</span><b>'+r.goal+'</b></div></div><button class="primary-btn full" id="revealNext">'+(i===players.length-1?'সবাই প্রস্তুত, শুরু হোক':'পরিচয় লুকান এবং ফোন দিন')+' <span>✓</span></button><p class="tiny-note center">অন্য খেলোয়াড়কে আপনার পরিচয় দেখাবেন না।</p>';
- $('#revealNext').onclick=()=>{if(i+1<players.length)currentReveal(i+1);else startRound()};
-}
-function addLog(t){logs.unshift(t);logs=logs.slice(0,10)}
-function eventForRound(){
- const list=mode==='fun'?funEvents:storyEvents;
- const e=list[(round-1)%list.length];signal=Math.max(0,Math.min(100,signal+e[2]));
- return e;
-}
-function startRound(){
- if(checkVictory())return;
- actions=[];votes=[];protectionTarget=null;voteResult=null;personalReports={};
- const e=eventForRound();
- addLog('রাউন্ড '+round+' শুরু। '+e[0]+'।');
- if(mode==='story')$('#eventText').textContent=storyBeats[(round-1)%storyBeats.length]+' '+e[1];
- turnOrder=shuffle([...alive]);turnIndex=0;phase='actions';
- showHandover(turnOrder[0],'গোপন অ্যাকশন শুরু হবে',()=>showActionTurn(turnOrder[0]));
-}
-function showHandover(pid,sub,callback){
- $('#passScreen').innerHTML='<div class="section-kicker">PASS THE DEVICE</div><div class="pass-lock">▣</div><p class="muted center">'+sub+'</p><h2 class="center">'+escapeHtml(players[pid])+'</h2><div class="pass-card center"><div class="pass-label">PRIVATE TURN</div><h3>আপনি প্রস্তুত?</h3><p>নিশ্চিত করুন অন্য কেউ স্ক্রিন দেখছে না। আপনার সিদ্ধান্ত গোপন থাকবে।</p></div><button class="primary-btn full" id="privateReady">শুধু আমার টার্ন খুলুন <span>↗</span></button>';
- $('#privateReady').onclick=callback;show('passScreen');
-}
-function targetOptions(exclude){
- return alive.filter(i=>i!==exclude).map(i=>'<option value="'+i+'">'+escapeHtml(players[i])+'</option>').join('');
-}
-function showActionTurn(pid){
- const r=roles[pid];let extra='';
- if(r.key==='analyst'||r.key==='security')extra='<label class="turn-label">যাকে পরীক্ষা করবেন<select id="turnTarget"><option value="">খেলোয়াড় নির্বাচন করুন</option>'+targetOptions(pid)+'</select></label>';
- if(r.key==='medic')extra='<label class="turn-label">যাকে সুরক্ষা দেবেন<select id="turnTarget"><option value="">খেলোয়াড় নির্বাচন করুন</option>'+alive.map(i=>'<option value="'+i+'">'+escapeHtml(players[i])+'</option>').join('')+'</select></label>';
- if(r.key==='double')extra='<div class="action-options"><label class="choice-btn"><input type="radio" name="doubleAct" value="leak" checked> সিগন্যাল ৬% কমান</label><label class="choice-btn"><input type="radio" name="doubleAct" value="hide"> নীরবে ৪% মেরামত করুন</label></div>';
- const report=personalReports[pid]?'<div class="role-objective"><span>আপনার আগের রিপোর্ট</span><b>'+personalReports[pid]+'</b></div>':'';
- $('#passScreen').innerHTML='<div class="section-kicker">PRIVATE ACTION · ROUND '+round+'</div><div class="pass-lock">'+r.icon+'</div><p class="muted center">শুধু '+escapeHtml(players[pid])+' দেখুন</p><h2 class="center">'+r.name+'</h2><div class="pass-card"><div class="pass-label">আপনার গোপন অ্যাকশন</div><h3>'+r.actionLabel+'</h3><p>'+r.actionDesc+'</p>'+extra+report+'</div><button class="primary-btn full" id="submitAction">অ্যাকশন জমা দিন <span>✓</span></button><p class="tiny-note center">জমা দেওয়ার পর আপনার সিদ্ধান্ত আর বদলানো যাবে না।</p>';
- $('#submitAction').onclick=()=>{
-  const entry={pid,action:r.action};
-  if(r.key==='double')entry.action=$('input[name="doubleAct"]:checked').value;
-  if(r.target||r.key==='medic'){const v=$('#turnTarget').value;if(v===''){toast('একজন খেলোয়াড় নির্বাচন করুন।');return}entry.target=+v}
-  actions.push(entry);turnIndex++;
-  if(turnIndex<turnOrder.length){showHandover(turnOrder[turnIndex],'আপনার অ্যাকশন গোপনে জমা হয়েছে',()=>showActionTurn(turnOrder[turnIndex]))}
-  else resolveActions();
- };
- show('passScreen');
-}
-function resolveActions(){
- let repair=0,damage=0,protect=null,summary=[];
- actions.forEach(a=>{
-  const r=roles[a.pid];
-  if(a.action==='coordinate'){repair+=5;scores[a.pid]+=1;summary.push(players[a.pid]+' দলের সমন্বয় করেছে')}
-  if(a.action==='repair'){repair+=12;scores[a.pid]+=1;summary.push('পাওয়ার সিস্টেম মেরামতের চেষ্টা হয়েছে')}
-  if(a.action==='sabotage'){damage+=14;scores[a.pid]+=2;summary.push('সিগন্যাল লাইনে নাশকতার চেষ্টা হয়েছে')}
-  if(a.action==='leak'){damage+=6;scores[a.pid]+=1}
-  if(a.action==='hide'){repair+=4;scores[a.pid]+=1}
-  if(a.action==='protect'){protect=a.target;protectionTarget=a.target;summary.push(players[a.target]+' এর নিরাপত্তা জোরদার হয়েছে')}
-  if(a.action==='investigate'||a.action==='scan'){
-   const isThreat=roles[a.target].team==='enemy';
-   const text=a.action==='investigate'?(isThreat?'তদন্তে অসামঞ্জস্যপূর্ণ লগ পাওয়া গেছে। লক্ষ্যটি বিপজ্জনক হতে পারে।':'তদন্তে এখনো অপরাধের নির্ভরযোগ্য প্রমাণ মেলেনি।'):(isThreat?'অ্যাক্সেস লগে সন্দেহজনক প্রবেশ নিশ্চিত।':'অ্যাক্সেস লগে সরাসরি নাশকতার প্রমাণ নেই।');
-   personalReports[a.pid]=players[a.target]+': '+text;
-   summary.push('একটি গোপন তদন্ত সম্পন্ন হয়েছে');
-  }
- });
- if(protect!==null)damage=Math.max(0,damage-8);
- signal=Math.max(0,Math.min(100,signal+repair-damage));
- addLog('গোপন অ্যাকশন শেষ। সিগন্যাল '+(repair-damage>=0?'+':'')+(repair-damage)+'%।');
- lastRoundSummary=summary.length?summary.join(' · '):'কোনো বিশেষ অ্যাকশন ধরা পড়েনি।';
- if(checkVictory())return;
- renderGame('আলোচনা ও প্রমাণ','সব গোপন অ্যাকশন শেষ। নিজেদের সূত্র নিয়ে আলোচনা করুন, কিন্তু ব্যক্তিগত রিপোর্ট অন্যকে দেখাবেন না।');
- phase='discussion';$('#nextPhase').textContent='গোপন ভোট শুরু করুন →';show('gameScreen');
- if(checkVictory())return;
-}
-function renderGame(title,desc){
- const list=mode==='fun'?funEvents:storyEvents,e=list[(round-1)%list.length];
- $('#roundLabel').textContent='ROUND '+String(round).padStart(2,'0')+' / '+String(totalRounds).padStart(2,'0');
- $('#phaseTitle').textContent=title||'কন্ট্রোল রুম';
- $('#eventTitle').textContent=e[0];if(!$('#eventText').textContent||phase!=='actions')$('#eventText').textContent=desc||e[1];
- $('#signalValue').textContent=signal+'%';$('#signalBar').style.width=signal+'%';
- $('#playerBoard').innerHTML=players.map((p,i)=>'<div class="player-chip '+(alive.includes(i)?'':'dead')+'"><span class="avatar">'+(i+1)+'</span><div>'+escapeHtml(p)+'<small>'+(alive.includes(i)?'সক্রিয়':'বিচ্ছিন্ন')+'</small></div></div>').join('');
- $('#aliveCount').textContent=alive.length+' জন সক্রিয়';
- $('#phaseAction').innerHTML='<h3>সিস্টেম রিপোর্ট</h3><p>'+escapeHtml(desc||lastRoundSummary)+'</p><div class="role-objective"><span>সিগন্যাল স্ট্যাটাস</span><b>'+signal+'% · '+(signal>50?'যোগাযোগ স্থিতিশীল':signal>20?'যোগাযোগ ঝুঁকিতে':'জরুরি অবস্থা')+'</b></div>';
- $('#logList').innerHTML=logs.map(x=>'<div class="log-item">'+escapeHtml(x)+'</div>').join('');
-}
-function startVoting(){
- phase='voting';votes=[];turnOrder=shuffle([...alive]);turnIndex=0;
- showHandover(turnOrder[0],'এখন প্রত্যেকে গোপনে ভোট দেবেন',()=>showVoteTurn(turnOrder[0]));
-}
-function showVoteTurn(pid){
- $('#passScreen').innerHTML='<div class="section-kicker">SECRET BALLOT · ROUND '+round+'</div><div class="pass-lock">◎</div><p class="muted center">শুধু '+escapeHtml(players[pid])+' দেখুন</p><h2 class="center">আপনার ভোট</h2><div class="pass-card"><div class="pass-label">কাকে সন্দেহ করছেন?</div><h3>একজনকে নির্বাচন করুন</h3><p>আপনার ভোট অন্য কেউ দেখতে পাবে না। নিজের নাম বাদে যেকোনো সক্রিয় খেলোয়াড়কে ভোট দিতে পারেন।</p><div class="action-options">'+alive.filter(i=>i!==pid).map(i=>'<label class="choice-btn"><input type="radio" name="ballot" value="'+i+'"> '+escapeHtml(players[i])+'</label>').join('')+'<label class="choice-btn"><input type="radio" name="ballot" value="-1"> কাউকে নয় · Abstain</label></div></div><button class="primary-btn full" id="castVote">গোপন ভোট জমা দিন <span>✓</span></button>';
- $('#castVote').onclick=()=>{const v=$('input[name="ballot"]:checked');if(!v){toast('একটি ভোট নির্বাচন করুন।');return}votes.push({voter:pid,target:+v.value});turnIndex++;if(turnIndex<turnOrder.length)showHandover(turnOrder[turnIndex],'আপনার ভোট গোপনে জমা হয়েছে',()=>showVoteTurn(turnOrder[turnIndex]));else tallyVotes()};
- show('passScreen');
-}
-function tallyVotes(){
- const counts={};votes.forEach(v=>{if(v.target>=0)counts[v.target]=(counts[v.target]||0)+1});
- const max=Math.max(0,...Object.values(counts)),leaders=Object.keys(counts).filter(k=>counts[k]===max).map(Number);
- let eliminated=null,reason='';
- if(leaders.length===1&&max>0){
-  const target=leaders[0];
-  if(target===protectionTarget){reason=players[target]+' সবচেয়ে বেশি ভোট পেয়েছে, কিন্তু চিকিৎসকের সুরক্ষায় বেঁচে গেছে।';}
-  else{eliminated=target;alive=alive.filter(i=>i!==target);reason=players[target]+' সবচেয়ে বেশি ভোট পেয়ে কন্ট্রোল রুম থেকে বহিষ্কৃত হয়েছে।';}
- }else reason=max===0?'কেউ ভোট পায়নি। কাউকে বহিষ্কার করা হয়নি।':'ভোট সমান হয়েছে। কাউকে বহিষ্কার করা হয়নি।';
- voteResult={eliminated,reason,counts,leaders};
- if(eliminated!==null){addLog(reason+' পরিচয়: '+roles[eliminated].name);if(roles[eliminated].team==='crew')signal=Math.max(0,signal-5)}
- else{addLog(reason);signal=Math.max(0,signal-3)}
- phase='result';renderGame('ভোটের ফলাফল',reason+' '+(eliminated!==null?'গোপন পরিচয়: '+roles[eliminated].name:'পরের রাউন্ডে আবার চেষ্টা করুন।'));
- $('#phaseAction').innerHTML='<h3>ভোট গণনা সম্পন্ন</h3><p>'+escapeHtml(reason)+'</p><div class="reveal-list">'+players.map((p,i)=>{const n=counts[i]||0;return '<div class="reveal-item"><b>'+escapeHtml(p)+'</b><span>'+(alive.includes(i)?'সক্রিয়':'বহিষ্কৃত')+' · '+n+' ভোট</span></div>'}).join('')+'</div>';
- $('#nextPhase').textContent='ফলাফল নিশ্চিত করুন →';show('gameScreen');
-}
-function checkVictory(){
- const threats=alive.filter(i=>roles[i].team==='enemy').length;
- const crew=alive.filter(i=>roles[i].team==='crew').length;
- if(signal<=0){endGame('enemy','সিগন্যাল সম্পূর্ণ বন্ধ। সাবোটিয়ারদের পরিকল্পনা সফল হয়েছে।');return true}
- if(threats===0){endGame('crew','সব সাবোটিয়ার শনাক্ত হয়েছে। ঢাকার নেটওয়ার্ক আবার চালু করা সম্ভব।');return true}
- if(threats>=crew){endGame('enemy','সাবোটিয়াররা এখন কন্ট্রোল রুমের সংখ্যাগরিষ্ঠতা পেয়েছে।');return true}
- if(alive.length<=2&&threats>0){endGame('enemy','শেষ মুহূর্তেও সাবোটিয়ারকে থামানো যায়নি।');return true}
- return false;
-}
-function finishRound(){
- if(checkVictory())return;
- if(round>=totalRounds){endGame('enemy','সময় শেষ। শেষ সংকেতের আগে সাবোটিয়ারদের ধরা যায়নি।');return}
- round++;startRound();
-}
-function endGame(winner,message){
- phase='end';const crewWon=winner==='crew';
- const doubleAlive=alive.some(i=>roles[i].team==='solo');
- $('#endSymbol').textContent=crewWon?'◈':'☠';$('#endSymbol').style.color=crewWon?'var(--cyan)':'var(--red)';
- $('#endTitle').textContent=crewWon?'সংকেত ফিরে এসেছে':'শেষ সংকেত হারিয়ে গেছে';
- $('#endText').textContent=message+(doubleAlive?' ডাবল এজেন্টও শেষ পর্যন্ত টিকে গেছে!':'');
- $('#revealList').innerHTML=players.map((p,i)=>'<div class="reveal-item"><b>'+escapeHtml(p)+'</b><span>'+roles[i].name+' · '+(alive.includes(i)?'শেষ পর্যন্ত টিকে':'বহিষ্কৃত')+'</span></div>').join('');
- show('endScreen');
-}
-function next(){
- if(phase==='discussion'){startVoting();return}
- if(phase==='result'){finishRound();return}
-}
-$$('[data-mode]').forEach(b=>b.addEventListener('click',()=>setup(b.dataset.mode)));
-$('#backHome').onclick=()=>show('homeScreen');
-$('#homeLink').onclick=e=>{e.preventDefault();show('homeScreen')};
-$('#addPlayer').onclick=()=>{if(players.length>=8){toast('সর্বোচ্চ ৮ জন খেলতে পারবেন।');return}players.push('খেলোয়াড় '+(players.length+1));buildInputs()};
-$('#removePlayer').onclick=()=>{if(players.length<=5){toast('কমপক্ষে ৫ জন লাগবে।');return}players.pop();buildInputs()};
-$('#beginGame').onclick=start;
-$('#nextPhase').onclick=next;
-$('#playAgain').onclick=()=>setup(mode);
-$('#goHome').onclick=()=>show('homeScreen');
+let trust=2;
+function clamp(n,a,b){return Math.max(a,Math.min(b,n))}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function show(id){screens.forEach(x=>$('#'+x).classList.toggle('active',x===id));window.scrollTo(0,0)}
+function toast(s){let e=$('#toast');e.textContent=s;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),2200)}
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function log(s){logs.unshift(s);logs=logs.slice(0,10)}
+function setup(m){mode=m;players=['রাফি','নাবিলা','তানভীর','মেহজাবিন','সাকিব'];$('#storyBrief').classList.toggle('hidden',m!=='story');$('#setupTitle').textContent=m==='fun'?'হাসির ম্যাচ তৈরি করুন':m==='story'?'অপারেশন শুরু করুন':'ম্যাচ তৈরি করুন';build();show('setupScreen')}
+function build(){$('#playerCount').textContent=players.length+' জন';$('#playerInputs').innerHTML=players.map((p,i)=>'<div class="player-input"><span class="player-num">'+(i+1)+'</span><input maxlength="18" data-i="'+i+'" value="'+esc(p)+'" placeholder="খেলোয়াড়ের নাম"></div>').join('');$$('#playerInputs input').forEach(e=>e.oninput=()=>players[+e.dataset.i]=e.value)}
+function assign(){let n=players.length,s=n>=7?2:1,crew=shuffle(['commander','engineer','analyst','security','medic','dispatcher']).slice(0,n-s);roles=shuffle([...crew,...Array(s).fill('saboteur')]).map(k=>({...R[k],key:k}));missions=players.map((_,i)=>{let pool=missionsList().filter(m=>roles[i].team==='enemy'?['survive','evidence','vote'].includes(m[0]):true);return shuffle(pool)[0]});missionDone=players.map(()=>false);score=players.map(()=>0)}
+function missionsList(){return missionsData}
+const missionsData=missions;
+function start(){players=$$('#playerInputs input').map((e,i)=>e.value.trim()||'খেলোয়াড় '+(i+1));if(players.length<5||players.length>8||new Set(players.map(x=>x.toLowerCase())).size!==players.length){toast('৫–৮ জন এবং সবার আলাদা নাম দিন।');return}total=+$('#duration').value;assign();alive=players.map((_,i)=>i);round=1;signal=65;power=5;intel=1;panic=0;trust=2;logs=[];evidence=[];roundEvents=[];reports={};showRole(0)}
+function showRole(i){let r=roles[i];$('#passScreen').innerHTML='<div class="section-kicker">PRIVATE IDENTITY</div><div class="pass-lock">'+r.icon+'</div><p class="muted center">শুধু '+esc(players[i])+' দেখুন</p><h2 class="center">'+esc(players[i])+'</h2><div class="pass-card"><div class="pass-label">আপনার গোপন পরিচয়</div><div class="role-icon">'+r.icon+'</div><h3>'+r.name+'</h3><p>'+r.desc+'</p><div class="role-objective"><span>TEAM OBJECTIVE</span><b>'+r.objective+'</b></div><div class="role-objective"><span>SECRET MISSION</span><b>'+missions[i][1]+'</b></div></div><button class="primary-btn full" id="rn">'+(i===players.length-1?'খেলা শুরু করুন':'পরিচয় লুকান, ফোন দিন')+'</button>';$('#rn').onclick=()=>i+1<players.length?showRole(i+1):startRound();show('passScreen')}
+function pass(pid,caption,fn){$('#passScreen').innerHTML='<div class="section-kicker">PASS THE DEVICE</div><div class="pass-lock">▣</div><p class="muted center">'+caption+'</p><h2 class="center">'+esc(players[pid])+'</h2><div class="pass-card center"><div class="pass-label">PRIVATE TURN</div><h3>আপনি প্রস্তুত?</h3><p>নিশ্চিত করুন অন্য কেউ স্ক্রিন দেখছে না।</p></div><button class="primary-btn full" id="ready">আমার টার্ন খুলুন ↗</button>';$('#ready').onclick=fn;show('passScreen')}
+function res(){return '<div class="resource-grid">'+[['SIGNAL',signal,signal],['POWER',power,power/8*100],['INTEL',intel,intel/8*100],['PANIC',panic+'/5',panic/5*100]].map(x=>'<div><small>'+x[0]+'</small><b>'+x[1]+'</b><i><em style="width:'+x[2]+'%"></em></i></div>').join('')+'</div>'}
+function apply(e){signal=clamp(signal+(e.s||0),0,100);power=clamp(power+(e.p||0),0,8);intel=clamp(intel+(e.i||0),0,8);panic=clamp(panic+(e.pa||0),0,5);trust=clamp(trust+(e.t||0),0,5)}
+function eventNext(){let pool=events.filter(e=>!roundEvents.includes(e[0]));if(!pool.length){roundEvents=[];pool=events}let e=shuffle(pool)[0];roundEvents.push(e[0]);return e}
+function startRound(){if(check())return;actions=[];votes=[];crisisVotes=[];protectedPlayer=null;reports={};event=eventNext();phase='crisis';log('ROUND '+round+' · '+event[0]);turns=shuffle([...alive]);ti=0;pass(turns[0],'সবার আগে জরুরি সিদ্ধান্তে ভোট দিন',()=>crisisTurn(turns[0]))}
+function crisisTurn(pid){$('#passScreen').innerHTML='<div class="section-kicker">EMERGENCY COUNCIL · ROUND '+round+'</div><div class="pass-lock">⚠</div><p class="muted center">শুধু '+esc(players[pid])+' দেখুন</p><h2 class="center">'+esc(event[0])+'</h2><div class="pass-card"><p>'+event[1]+'</p><div class="action-options"><label class="choice-btn"><input type="radio" name="cv" value="A"> A. '+event[2]+'</label><label class="choice-btn"><input type="radio" name="cv" value="B"> B. '+event[3]+'</label></div></div><button class="primary-btn full" id="send">গোপন সিদ্ধান্ত জমা দিন</button>';$('#send').onclick=()=>{let v=$('input[name="cv"]:checked');if(!v){toast('একটি সিদ্ধান্ত বেছে নিন।');return}crisisVotes.push(v.value);ti++;if(ti<turns.length)pass(turns[ti],'আপনার ভোট জমা হয়েছে। পরের খেলোয়াড়কে দিন।',()=>crisisTurn(turns[ti]));else resolveCrisis()};show('passScreen')}
+function resolveCrisis(){let a=crisisVotes.filter(x=>x==='A').length,b=crisisVotes.length-a,c=a===b?(Math.random()<.5?'A':'B'):a>b?'A':'B';apply(event[c]);log('জরুরি সিদ্ধান্ত: '+(c==='A'?event[2]:event[3])+' · '+a+' বনাম '+b+' ভোট');render('CRISIS RESULT','দলের সিদ্ধান্ত: '+(c==='A'?event[2]:event[3]));if(check())return;startActions()}
+function targetOpts(pid,self=false){return alive.filter(i=>self||i!==pid).map(i=>'<option value="'+i+'">'+esc(players[i])+'</option>').join('')}
+function startActions(){phase='actions';turns=shuffle([...alive]);ti=0;pass(turns[0],'প্রত্যেকে একটি গোপন অ্যাকশন নেবেন',()=>actionTurn(turns[0]))}
+function actionTurn(pid){let r=roles[pid],opts=r.actions.map(a=>'<label class="choice-btn action-radio"><input type="radio" name="act" value="'+a[0]+'"> <b>'+a[1]+'</b><small>'+a[2]+'</small></label>').join(''),needs=['analyze','audit','shield','forge','decrypt'].some(k=>r.actions.some(a=>a[0]===k)),target=needs?'<label class="turn-label">টার্গেট<select id="target"><option value="">একজনকে বেছে নিন</option>'+targetOpts(pid,r.key==='medic')+'</select></label>':'',report=reports[pid]?'<div class="role-objective"><span>PRIVATE INTELLIGENCE</span><b>'+esc(reports[pid])+'</b></div>':'';$('#passScreen').innerHTML='<div class="section-kicker">SECRET OPERATION · ROUND '+round+'</div><div class="pass-lock">'+r.icon+'</div><p class="muted center">শুধু '+esc(players[pid])+' দেখুন</p><h2 class="center">'+r.name+'</h2><div class="pass-card"><div class="pass-label">একটি গোপন অ্যাকশন বেছে নিন</div><div class="action-options">'+opts+'</div>'+target+report+'<div class="role-objective"><span>SECRET MISSION</span><b>'+missions[pid][1]+'</b></div></div><button class="primary-btn full" id="submit">অ্যাকশন জমা দিন ✓</button>';$('#submit').onclick=()=>{let v=$('input[name="act"]:checked');if(!v){toast('অ্যাকশন বেছে নিন।');return}let a={pid,act:v.value};if(needs){if($('#target').value===''){toast('টার্গেট বেছে নিন।');return}a.target=+$('#target').value}actions.push(a);ti++;if(ti<turns.length)pass(turns[ti],'অ্যাকশন জমা হয়েছে। পরের খেলোয়াড়কে দিন।',()=>actionTurn(turns[ti]));else resolveActions()};show('passScreen')}
+function addEvidence(t,text,q,source){evidence.unshift({t,text,q,source});evidence=evidence.slice(0,8)}
+function resolveActions(){let repair=0,damage=0,lock=actions.some(a=>a.act==='lockdown'),jam=0,shield=null;
+ actions.filter(a=>roles[a.pid].team==='enemy').forEach(a=>{if(a.act==='overload'){damage+=lock?6:13;score[a.pid]+=2}if(a.act==='steal'){power=clamp(power-2,0,8);panic=clamp(panic+1,0,5);score[a.pid]++}if(a.act==='forge'){addEvidence(a.target,'সার্ভার রুমে সন্দেহজনক প্রবেশ','দুর্বল','অজ্ঞাত সূত্র');score[a.pid]++;missionDone[a.pid]=true}if(a.act==='jam')jam++});
+ actions.filter(a=>roles[a.pid].team==='crew').forEach(a=>{let k=roles[a.pid].key;if(a.act==='rally'){repair+=4;trust=clamp(trust+1,0,5);score[a.pid]++}if(a.act==='lockdown'){trust=clamp(trust+1,0,5);score[a.pid]++}if(a.act==='repair'){let v=power>=2?15:5;if(power>=2)power-=2;repair+=v;score[a.pid]+=2;missionDone[a.pid]=true}if(a.act==='reroute'){power=clamp(power+2,0,8);repair+=4;score[a.pid]++}if(a.act==='analyze'||a.act==='audit'||a.act==='decrypt'){let bad=roles[a.target].team==='enemy',certainty=a.act==='audit'?'উচ্চ':a.act==='analyze'?'মাঝারি':'কম';reports[a.pid]=players[a.target]+' সম্পর্কে '+certainty+' নির্ভরযোগ্য সূত্র: '+(bad?'নাশকতার চিহ্ন পাওয়া গেছে।':'সরাসরি নাশকতার প্রমাণ নেই।');addEvidence(a.target,'ডিজিটাল ট্রেস পাওয়া গেছে',a.act==='audit'?'মাঝারি':'দুর্বল','তদন্ত বিভাগ');intel=clamp(intel+1,0,8);if(bad)missionDone[a.pid]=true;score[a.pid]++}if(a.act==='verify'){let e=evidence[0];reports[a.pid]=e?'সর্বশেষ প্রমাণ '+(e.source==='অজ্ঞাত সূত্র'?'ভুয়া হতে পারে':'সমর্থিত')+': '+e.text:'যাচাই করার মতো প্রমাণ নেই।';if(e){e.q=e.source==='অজ্ঞাত সূত্র'?'ভুয়া':'যাচাইকৃত';missionDone[a.pid]=true}}if(a.act==='secure'){repair+=3;trust=clamp(trust+1,0,5)}if(a.act==='shield'){shield=a.target;protectedPlayer=a.target;score[a.pid]++}if(a.act==='stabilize'){repair+=6;panic=clamp(panic-1,0,5)}if(a.act==='broadcast'){intel=clamp(intel+2,0,8);repair+=3;score[a.pid]++}});
+ if(jam&&repair){let cut=Math.min(repair,jam*7);repair-=cut;log('Jamming '+cut+' Repair শক্তি নষ্ট করেছে।')}if(lock&&damage){let cut=Math.min(damage,7);damage-=cut;log('Lockdown নাশকতার '+cut+' ক্ষতি ঠেকিয়েছে।')}if(shield!==null&&damage){let cut=Math.min(damage,8);damage-=cut;log('Medic সুরক্ষায় '+cut+' ক্ষতি ঠেকিয়েছে।')}
+ signal=clamp(signal+repair-damage,0,100);if(signal>=80)players.forEach((p,i)=>{if(missions[i][0]==='signal')missionDone[i]=true});if(intel>=2)players.forEach((p,i)=>{if(missions[i][0]==='intel')missionDone[i]=true});
+ actions.forEach(a=>{if(missions[a.pid][0]==='evidence'&&['forge','verify','analyze','audit'].includes(a.act))missionDone[a.pid]=true});
+ log('অপারেশন শেষ: Signal '+(repair-damage>=0?'+':'')+(repair-damage)+' · Power '+power+' · Intel '+intel);render('EVIDENCE & CONSEQUENCES','অ্যাকশনের ফল প্রকাশিত। ব্যক্তিগত রিপোর্ট গোপন থাকবে।');if(check())return;phase='discussion';$('#nextPhase').textContent='আলোচনা শেষে গোপন ভোট →';show('gameScreen')}
+function evidenceHtml(){return evidence.length?evidence.map(e=>'<div class="evidence-item"><b>'+esc(e.text)+'</b><small>টার্গেট: '+esc(players[e.t])+' · '+e.q+' · '+e.source+'</small></div>').join(''):'<p class="muted">এখনো কোনো প্রমাণ পাওয়া যায়নি।</p>'}
+function render(title,desc){$('#roundLabel').textContent='ROUND '+String(round).padStart(2,'0')+' / '+String(total).padStart(2,'0');$('#phaseTitle').textContent=title;$('#eventTitle').textContent=event?event[0]:'কন্ট্রোল রুম';$('#eventText').textContent=desc||event?.[1]||'';$('#signalValue').textContent=signal+'%';$('#signalBar').style.width=signal+'%';$('#playerBoard').innerHTML=players.map((p,i)=>'<div class="player-chip '+(alive.includes(i)?'':'dead')+'"><span class="avatar">'+(i+1)+'</span><div>'+esc(p)+'<small>'+(alive.includes(i)?'সক্রিয়':'বহিষ্কৃত')+'</small></div></div>').join('');$('#aliveCount').textContent=alive.length+' জন সক্রিয়';$('#phaseAction').innerHTML=res()+'<h3>প্রমাণ বোর্ড</h3>'+evidenceHtml()+'<div class="role-objective"><span>PUBLIC STATUS</span><b>Trust '+trust+'/5 · Panic '+panic+'/5 · Intel '+intel+'</b></div>';$('#logList').innerHTML=logs.map(x=>'<div class="log-item">'+esc(x)+'</div>').join('')}
+function startVoting(){phase='voting';votes=[];turns=shuffle([...alive]);ti=0;pass(turns[0],'এখন প্রত্যেকে গোপনে ভোট দেবেন',()=>voteTurn(turns[0]))}
+function voteTurn(pid){$('#passScreen').innerHTML='<div class="section-kicker">SECRET BALLOT · ROUND '+round+'</div><div class="pass-lock">◎</div><p class="muted center">শুধু '+esc(players[pid])+' দেখুন</p><h2 class="center">'+esc(players[pid])+'</h2><div class="pass-card"><div class="pass-label">আপনার ভোট</div><p>নিজেকে বাদে একজনকে বেছে নিন অথবা Abstain করুন।</p><div class="action-options">'+alive.filter(i=>i!==pid).map(i=>'<label class="choice-btn"><input type="radio" name="ballot" value="'+i+'"> '+esc(players[i])+'</label>').join('')+'<label class="choice-btn"><input type="radio" name="ballot" value="-1"> কাউকে নয় · Abstain</label></div></div><button class="primary-btn full" id="cast">গোপন ভোট জমা দিন</button>';$('#cast').onclick=()=>{let v=$('input[name="ballot"]:checked');if(!v){toast('ভোট বেছে নিন।');return}votes.push({pid,target:+v.value});if(+v.value>=0&&roles[+v.value].team==='enemy'&&missions[pid][0]==='vote')missionDone[pid]=true;ti++;if(ti<turns.length)pass(turns[ti],'ভোট জমা হয়েছে। ফোন পরের খেলোয়াড়কে দিন।',()=>voteTurn(turns[ti]));else tally()};show('passScreen')}
+function tally(){let count={};votes.forEach(v=>{if(v.target>=0)count[v.target]=(count[v.target]||0)+1});let max=Math.max(0,...Object.values(count)),leaders=Object.keys(count).filter(k=>count[k]===max&&max>0).map(Number),out=null,msg;if(leaders.length===1){out=leaders[0];if(out===protectedPlayer){msg=players[out]+' সর্বোচ্চ ভোট পেয়েছে, কিন্তু Medic-এর সুরক্ষায় বেঁচে গেছে।';out=null}else{alive=alive.filter(i=>i!==out);msg=players[out]+' বহিষ্কৃত। পরিচয়: '+roles[out].name;if(roles[out].team==='crew')signal=clamp(signal-5,0,100)}}else msg=max===0?'কেউ ভোট পায়নি।':'ভোট সমান হয়েছে, কেউ বাদ পড়েনি।';if(out===null)signal=clamp(signal-2,0,100);log(msg);if(out!==null&&roles[out].team==='enemy')players.forEach((p,i)=>{if(missions[i][0]==='vote')missionDone[i]=true});phase='result';render('VOTE RESULT',msg);$('#phaseAction').innerHTML=res()+'<h3>ভোটের ফলাফল</h3><p>'+esc(msg)+'</p><div class="reveal-list">'+players.map((p,i)=>'<div class="reveal-item"><b>'+esc(p)+'</b><span>'+(alive.includes(i)?'সক্রিয়':'বহিষ্কৃত')+' · '+(count[i]||0)+' ভোট</span></div>').join('')+'</div>';$('#nextPhase').textContent='পরবর্তী রাউন্ড →';show('gameScreen');check()}
+function check(){let sab=alive.filter(i=>roles[i].team==='enemy').length,crew=alive.filter(i=>roles[i].team==='crew').length;if(signal<=0){end('enemy','Signal শূন্য। শহরের যোগাযোগ ব্যবস্থা ধ্বংস হয়েছে।');return true}if(!sab){end('crew','সব Saboteur শনাক্ত হয়েছে। নেটওয়ার্ক রক্ষা পেয়েছে।');return true}if(sab>=crew){end('enemy','Saboteur-রা সংখ্যাগরিষ্ঠতা পেয়েছে। কন্ট্রোল রুম তাদের দখলে।');return true}return false}
+function finish(){if(check())return;if(round>=total){end('enemy','সময় শেষ। শেষ ট্রান্সমিশনের আগে Saboteur-দের ধরা যায়নি।');return}round++;startRound()}
+function end(winner,msg){phase='end';players.forEach((p,i)=>{if(missions[i][0]==='survive'&&alive.includes(i))missionDone[i]=true;if(missionDone[i])score[i]+=3});let ok=winner==='crew';$('#endSymbol').textContent=ok?'◈':'☠';$('#endSymbol').style.color=ok?'var(--cyan)':'var(--red)';$('#endTitle').textContent=ok?'সংকেত ফিরে এসেছে':'শেষ সংকেত হারিয়ে গেছে';$('#endText').textContent=msg;$('#revealList').innerHTML=players.map((p,i)=>'<div class="reveal-item"><b>'+esc(p)+'</b><span>'+roles[i].name+' · '+(alive.includes(i)?'টিকে':'বহিষ্কৃত')+' · '+score[i]+' পয়েন্ট'+(missionDone[i]?' · মিশন সম্পন্ন':'')+'</span></div>').join('');show('endScreen')}
+function next(){if(phase==='discussion')startVoting();else if(phase==='result')finish()}
+$$('[data-mode]').forEach(b=>b.onclick=()=>setup(b.dataset.mode));$('#backHome').onclick=()=>show('homeScreen');$('#homeLink').onclick=e=>{e.preventDefault();show('homeScreen')};$('#addPlayer').onclick=()=>{if(players.length<8){players.push('খেলোয়াড় '+(players.length+1));build()}else toast('সর্বোচ্চ ৮ জন।')};$('#removePlayer').onclick=()=>{if(players.length>5){players.pop();build()}else toast('কমপক্ষে ৫ জন।')};$('#beginGame').onclick=start;$('#nextPhase').onclick=next;$('#playAgain').onclick=()=>setup(mode);$('#goHome').onclick=()=>show('homeScreen');
 })();

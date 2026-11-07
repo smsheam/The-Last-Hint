@@ -24,10 +24,9 @@ const events=[
 ['জনতার চাপ','ভুল খবর ছড়ালে শহরে Panic বেড়ে যাবে।','সত্য তথ্য প্রচার','গোপনীয়তা বজায়',{i:1,t:2,s:-2},{t:-1,s:3}],
 ['শেষ ব্যাকআপ','একটি ব্যাকআপ ব্যাটারি আছে। এখন ব্যবহার করবেন?','এখন ব্যবহার','জরুরি সময়ের জন্য রাখুন',{s:10,p:-2},{p:2,s:-3}]
 ];
-const missions=[
+const missionPool=[
 ['repair','এই ম্যাচে অন্তত একবার সিস্টেম মেরামত করুন।'],['intel','দলের জন্য অন্তত ২ Intel সংগ্রহ করুন।'],['survive','শেষ রাউন্ড পর্যন্ত বেঁচে থাকুন।'],['vote','একজন Saboteur-কে ভোট দিন।'],['protect','আপনার কারণে কেউ বহিষ্কার থেকে বাঁচুক।'],['evidence','একটি প্রমাণ যাচাই বা তৈরি করুন।'],['signal','Signal ৮০% পর্যন্ত তুলতে সাহায্য করুন।']
 ];
-let trust=2;
 function clamp(n,a,b){return Math.max(a,Math.min(b,n))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function show(id){screens.forEach(x=>$('#'+x).classList.toggle('active',x===id));window.scrollTo(0,0)}
@@ -38,7 +37,7 @@ function setup(m){mode=m;players=['রাফি','নাবিলা','তান
 function build(){$('#playerCount').textContent=players.length+' জন';$('#playerInputs').innerHTML=players.map((p,i)=>'<div class="player-input"><span class="player-num">'+(i+1)+'</span><input maxlength="18" data-i="'+i+'" value="'+esc(p)+'" placeholder="খেলোয়াড়ের নাম"></div>').join('');$$('#playerInputs input').forEach(e=>e.oninput=()=>players[+e.dataset.i]=e.value)}
 function assign(){let n=players.length,s=n>=7?2:1,crew=shuffle(['commander','engineer','analyst','security','medic','dispatcher']).slice(0,n-s);roles=shuffle([...crew,...Array(s).fill('saboteur')]).map(k=>({...R[k],key:k}));missions=players.map((_,i)=>{let pool=missionsList().filter(m=>roles[i].team==='enemy'?['survive','evidence','vote'].includes(m[0]):true);return shuffle(pool)[0]});missionDone=players.map(()=>false);score=players.map(()=>0)}
 function missionsList(){return missionsData}
-const missionsData=missions;
+const missionsData=missionPool;
 function start(){players=$$('#playerInputs input').map((e,i)=>e.value.trim()||'খেলোয়াড় '+(i+1));if(players.length<5||players.length>8||new Set(players.map(x=>x.toLowerCase())).size!==players.length){toast('৫–৮ জন এবং সবার আলাদা নাম দিন।');return}total=+$('#duration').value;assign();alive=players.map((_,i)=>i);round=1;signal=65;power=5;intel=1;panic=0;trust=2;logs=[];evidence=[];roundEvents=[];reports={};showRole(0)}
 function showRole(i){let r=roles[i];$('#passScreen').innerHTML='<div class="section-kicker">PRIVATE IDENTITY</div><div class="pass-lock">'+r.icon+'</div><p class="muted center">শুধু '+esc(players[i])+' দেখুন</p><h2 class="center">'+esc(players[i])+'</h2><div class="pass-card"><div class="pass-label">আপনার গোপন পরিচয়</div><div class="role-icon">'+r.icon+'</div><h3>'+r.name+'</h3><p>'+r.desc+'</p><div class="role-objective"><span>TEAM OBJECTIVE</span><b>'+r.objective+'</b></div><div class="role-objective"><span>SECRET MISSION</span><b>'+missions[i][1]+'</b></div></div><button class="primary-btn full" id="rn">'+(i===players.length-1?'খেলা শুরু করুন':'পরিচয় লুকান, ফোন দিন')+'</button>';$('#rn').onclick=()=>i+1<players.length?showRole(i+1):startRound();show('passScreen')}
 function pass(pid,caption,fn){$('#passScreen').innerHTML='<div class="section-kicker">PASS THE DEVICE</div><div class="pass-lock">▣</div><p class="muted center">'+caption+'</p><h2 class="center">'+esc(players[pid])+'</h2><div class="pass-card center"><div class="pass-label">PRIVATE TURN</div><h3>আপনি প্রস্তুত?</h3><p>নিশ্চিত করুন অন্য কেউ স্ক্রিন দেখছে না।</p></div><button class="primary-btn full" id="ready">আমার টার্ন খুলুন ↗</button>';$('#ready').onclick=fn;show('passScreen')}
